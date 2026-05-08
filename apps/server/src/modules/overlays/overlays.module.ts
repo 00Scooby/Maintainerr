@@ -7,6 +7,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { OverlayItemStateEntity } from './entities/overlay-item-state.entities';
 import { OverlaySettingsEntity } from './entities/overlay-settings.entities';
 import { OverlayTemplateEntity } from './entities/overlay-template.entities';
+import { KometaExportService } from './kometa-export.service'; // <-- NEU: Import
 import { OverlayProcessorService } from './overlay-processor.service';
 import { OverlayRenderService } from './overlay-render.service';
 import { OverlaySettingsService } from './overlay-settings.service';
@@ -40,12 +41,14 @@ import { OverlayProviderModule } from './providers/overlay-provider.module';
     OverlayProcessorService,
     OverlayTaskService,
     OverlayTemplateService,
+    KometaExportService, // <-- NEU: Provider hinzugefügt
   ],
   exports: [
     OverlaySettingsService,
     OverlayProcessorService,
     OverlayTaskService,
     OverlayTemplateService,
+    KometaExportService, // <-- NEU: Export hinzugefügt
   ],
 })
 export class OverlaysModule {}

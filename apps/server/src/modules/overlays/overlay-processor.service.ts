@@ -14,6 +14,7 @@ import { Collection } from '../collections/entities/collection.entities';
 import { CollectionMedia } from '../collections/entities/collection_media.entities';
 import { OverlayAppliedDto, OverlayRevertedDto } from '../events/events.dto';
 import { MaintainerrLogger } from '../logging/logs.service';
+import { KometaExportService } from './kometa-export.service';
 import {
   OverlayRenderService,
   TemplateRenderContext,
@@ -63,6 +64,7 @@ export class OverlayProcessorService {
     private readonly templateService: OverlayTemplateService,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: MaintainerrLogger,
+    private readonly kometaExportService: KometaExportService,
   ) {
     this.logger.setContext(OverlayProcessorService.name);
     this.dataDir = configDataDir;
@@ -477,6 +479,10 @@ export class OverlayProcessorService {
       this.logger.log(
         `=== Overlay run complete: ${totalResult.processed} applied, ${totalResult.reverted} reverted, ${totalResult.skipped} skipped, ${totalResult.errors} errors ===`,
       );
+
+      // --- NEU: Unser Kometa Trigger! ---
+      await this.kometaExportService.generateExport(collections);
+      // ----------------------------------
 
       this.eventEmitter.emit(MaintainerrEvent.OverlayHandler_Finished);
       this.status = 'idle';
