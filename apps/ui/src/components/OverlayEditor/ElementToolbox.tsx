@@ -1,6 +1,7 @@
 import {
   AnnotationIcon,
   CursorClickIcon,
+  LightningBoltIcon,
   PhotographIcon,
   TemplateIcon,
   VariableIcon,
@@ -48,7 +49,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
     })
   }
 
-  const addVariable = () => {
+  const addVariable = (isKometa = false) => {
     onAdd({
       id: uid(),
       type: 'variable',
@@ -60,13 +61,18 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       layerOrder: nextLayerOrder,
       opacity: 1,
       visible: true,
-      segments: [
-        { type: 'text', value: 'Leaving ' },
-        { type: 'variable', field: 'date' },
-      ],
+      segments: isKometa
+        ? [
+            { type: 'text', value: 'Noch ' },
+            { type: 'variable', field: 'daysText' },
+          ]
+        : [
+            { type: 'text', value: 'Leaving ' },
+            { type: 'variable', field: 'date' },
+          ],
       fontFamily: 'Inter',
       fontPath: 'Inter-Bold.ttf',
-      fontSize: 36,
+      fontSize: isKometa ? 48 : 36, // Etwas größerer Text für Kometa standardmäßig
       fontColor: '#FFFFFF',
       fontWeight: 'bold',
       textAlign: 'center',
@@ -77,31 +83,45 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       shadow: false,
       uppercase: false,
       dateFormat: 'MMM d',
-      language: 'en-US',
+      language: isKometa ? 'de' : 'en-US', // Standardmäßig Deutsch für Kometa
       enableDaySuffix: false,
-      textToday: 'today',
-      textDay: 'in 1 day',
-      textDays: 'in {0} days',
+      textToday: 'heute',
+      textDay: '1 Tag',
+      textDays: '{0} Tage',
+      ...(isKometa && {
+        kometa: {
+          urgentDays: 3,
+          urgentColor: '#E31E24',
+          warningColor: '#F1C40F',
+        },
+      }),
     })
   }
 
-  const addShape = (shape: 'rectangle' | 'ellipse') => {
+  const addShape = (shape: 'rectangle' | 'ellipse', isKometa = false) => {
     onAdd({
       id: uid(),
       type: 'shape',
       x: 50,
       y: 50,
-      width: 200,
-      height: shape === 'ellipse' ? 200 : 60,
+      width: isKometa ? 400 : 200,
+      height: shape === 'ellipse' ? 200 : isKometa ? 80 : 60,
       rotation: 0,
       layerOrder: nextLayerOrder,
       opacity: 1,
       visible: true,
       shapeType: shape,
-      fillColor: '#B20710',
+      fillColor: isKometa ? '#E31E24' : '#B20710',
       strokeColor: null,
       strokeWidth: 0,
-      cornerRadius: shape === 'rectangle' ? 12 : 0,
+      cornerRadius: shape === 'rectangle' ? (isKometa ? 40 : 12) : 0, // Runde Ecken für Kometa Standard
+      ...(isKometa && {
+        kometa: {
+          urgentDays: 3,
+          urgentColor: '#E31E24',
+          warningColor: '#F1C40F',
+        },
+      }),
     })
   }
 
@@ -122,28 +142,54 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
   }
 
   return (
-    <div>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
-        Elements
-      </h3>
-      <div className="flex flex-col gap-1.5">
-        <ToolButton icon={AnnotationIcon} label="Text" onClick={addText} />
-        <ToolButton
-          icon={VariableIcon}
-          label="Variable"
-          onClick={addVariable}
-        />
-        <ToolButton
-          icon={TemplateIcon}
-          label="Rectangle"
-          onClick={() => addShape('rectangle')}
-        />
-        <ToolButton
-          icon={CursorClickIcon}
-          label="Ellipse"
-          onClick={() => addShape('ellipse')}
-        />
-        <ToolButton icon={PhotographIcon} label="Image" onClick={addImage} />
+    <div className="space-y-6">
+      {/* Native Elements */}
+      <div>
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
+          Elements
+        </h3>
+        <div className="flex flex-col gap-1.5">
+          <ToolButton icon={AnnotationIcon} label="Text" onClick={addText} />
+          <ToolButton
+            icon={VariableIcon}
+            label="Variable"
+            onClick={() => addVariable()}
+          />
+          <ToolButton
+            icon={TemplateIcon}
+            label="Rectangle"
+            onClick={() => addShape('rectangle')}
+          />
+          <ToolButton
+            icon={CursorClickIcon}
+            label="Ellipse"
+            onClick={() => addShape('ellipse')}
+          />
+          <ToolButton icon={PhotographIcon} label="Image" onClick={addImage} />
+        </div>
+      </div>
+
+      {/* Kometa Smart Elements */}
+      <div>
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-amber-500">
+          Kometa Smart
+        </h3>
+        <div className="flex flex-col gap-1.5">
+          <ToolButton
+            icon={LightningBoltIcon}
+            label="Smart Background"
+            onClick={() => addShape('rectangle', true)}
+            className="text-amber-200 hover:bg-amber-900/30"
+            iconClassName="text-amber-500"
+          />
+          <ToolButton
+            icon={LightningBoltIcon}
+            label="Smart Countdown"
+            onClick={() => addVariable(true)}
+            className="text-amber-200 hover:bg-amber-900/30"
+            iconClassName="text-amber-500"
+          />
+        </div>
       </div>
     </div>
   )
@@ -153,18 +199,22 @@ function ToolButton({
   icon: Icon,
   label,
   onClick,
+  className = 'text-zinc-300 hover:bg-zinc-700',
+  iconClassName = 'text-zinc-400',
 }: {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   label: string
   onClick: () => void
+  className?: string
+  iconClassName?: string
 }) {
   return (
     <button
       type="button"
-      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-300 transition hover:bg-zinc-700"
+      className={`flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition ${className}`}
       onClick={onClick}
     >
-      <Icon className="h-4 w-4 shrink-0 text-zinc-400" />
+      <Icon className={`h-4 w-4 shrink-0 ${iconClassName}`} />
       {label}
     </button>
   )
