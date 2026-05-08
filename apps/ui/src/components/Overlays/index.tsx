@@ -23,6 +23,12 @@ const overlayRoutes: SettingsRoute[] = [
     route: '/overlays/templates/new',
     regex: /^\/overlays\/templates\/new$/,
   },
+  // --- NEU: Kometa Export Tab ---
+  {
+    text: 'Kometa Export',
+    route: '/overlays/kometa',
+    regex: /^\/overlays\/kometa$/,
+  },
 ]
 
 const overlaysDisabledToastId = 'overlays-disabled'
@@ -50,12 +56,19 @@ const OverlaysWrapper = () => {
   const isLoading = isMediaServerLoading || isOverlaySettingsLoading
 
   const isTemplatesPath = location.pathname.startsWith('/overlays/templates')
+  // Wir erlauben den Kometa-Pfad auch, wenn Overlays generell deaktiviert sind,
+  // da man dort ja den eigenen Kometa-Master-Switch hat.
+  const isTemplatesOrKometaPath =
+    isTemplatesPath || location.pathname.startsWith('/overlays/kometa')
+
   const shouldRedirectFromTemplates =
     !isLoading && !overlaysEnabled && isTemplatesPath
 
   const isRouteDisabled = useCallback(
     (route: SettingsRoute) => {
       if (overlaysEnabled) return false
+      // Kometa soll immer aufrufbar sein, genau wie Settings
+      if (route.route === '/overlays/kometa') return false
       return route.route !== '/overlays/settings'
     },
     [overlaysEnabled],

@@ -19,13 +19,17 @@ export const overlaySettingsSchema = z.object({
   titleCardFrame: frameConfigSchema,
   cronSchedule: z.string().nullable(),
 
-  // --- NEU: Kometa Export Settings ---
-  kometaEnabled: z.boolean().default(false),
-  kometaUrgentDays: z.number().default(3),
-  kometaUrgentColor: z.string().default('#E31E24'), // Rot
-  kometaWarningDays: z.number().default(10),
-  kometaWarningColor: z.string().default('#F1C40F'), // Gelb
-  kometaTextColor: z.string().default('#FFFFFF'), // Weiss
+  // --- Kometa Export Settings (Abgesichert für Altdaten & frische DBs) ---
+  kometaEnabled: z.boolean().catch(false).default(false),
+  kometaUrgentDays: z.number().catch(3).default(3),
+  kometaUrgentColor: z.string().catch('#E31E24').default('#E31E24'),
+  kometaWarningDays: z.number().catch(10).default(10),
+  kometaWarningColor: z.string().catch('#F1C40F').default('#F1C40F'),
+  kometaTextColor: z.string().catch('#FFFFFF').default('#FFFFFF'),
+  kometaBannerX: z.number().int().optional().default(16),
+  kometaBannerY: z.number().int().optional().default(16),
+  kometaBannerW: z.number().int().min(1).optional().default(120),
+  kometaBannerH: z.number().int().min(1).optional().default(32),
 })
 
 export const overlaySettingsUpdateSchema = overlaySettingsSchema.partial()
@@ -43,13 +47,17 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   titleCardFrame: DEFAULT_FRAME_CONFIG,
   cronSchedule: null,
 
-  // --- NEU: Kometa Defaults ---
+  // --- Kometa Defaults ---
   kometaEnabled: false,
   kometaUrgentDays: 3,
   kometaUrgentColor: '#E31E24',
   kometaWarningDays: 10,
   kometaWarningColor: '#F1C40F',
   kometaTextColor: '#FFFFFF',
+  kometaBannerX: 16,
+  kometaBannerY: 16,
+  kometaBannerW: 120,
+  kometaBannerH: 32,
 }
 
 export const overlayExportSchema = z.object({

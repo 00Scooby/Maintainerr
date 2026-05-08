@@ -111,6 +111,9 @@ const overlayTemplateListRoute = createLazyRoute(
 const overlayTemplateEditorRoute = createLazyRoute(
   () => import('./pages/OverlayTemplateEditorPage'),
 )
+const overlayKometaRoute = createLazyRoute(
+  () => import('./pages/OverlayKometaPage'),
+)
 
 /**
  * Preloadable route definition — single source of truth for both
@@ -200,6 +203,12 @@ const appRoutes: AppRoute[] = [
             path: 'templates/:id',
             lazy: overlayTemplateEditorRoute.lazy,
             preload: overlayTemplateEditorRoute.preload,
+          },
+          // --- NEU: Kometa Export Page Route ---
+          {
+            path: 'kometa',
+            lazy: overlayKometaRoute.lazy,
+            preload: overlayKometaRoute.preload,
           },
         ],
       },

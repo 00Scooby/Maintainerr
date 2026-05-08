@@ -50,6 +50,10 @@ export class OverlaySettingsService {
       kometaWarningDays: entity.kometaWarningDays ?? 10,
       kometaWarningColor: entity.kometaWarningColor ?? '#F1C40F',
       kometaTextColor: entity.kometaTextColor ?? '#FFFFFF',
+      kometaBannerX: entity.kometaBannerX ?? 16,
+      kometaBannerY: entity.kometaBannerY ?? 16,
+      kometaBannerW: entity.kometaBannerW ?? 120,
+      kometaBannerH: entity.kometaBannerH ?? 32,
     };
   }
 
