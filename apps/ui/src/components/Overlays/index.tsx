@@ -56,10 +56,6 @@ const OverlaysWrapper = () => {
   const isLoading = isMediaServerLoading || isOverlaySettingsLoading
 
   const isTemplatesPath = location.pathname.startsWith('/overlays/templates')
-  // Wir erlauben den Kometa-Pfad auch, wenn Overlays generell deaktiviert sind,
-  // da man dort ja den eigenen Kometa-Master-Switch hat.
-  const isTemplatesOrKometaPath =
-    isTemplatesPath || location.pathname.startsWith('/overlays/kometa')
 
   const shouldRedirectFromTemplates =
     !isLoading && !overlaysEnabled && isTemplatesPath

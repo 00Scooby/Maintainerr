@@ -6,7 +6,7 @@ import {
   type OverlaySettingsUpdate,
 } from '@maintainerr/contracts'
 import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import {
   getOverlaySettings,
@@ -95,7 +95,7 @@ const OverlaySettings = () => {
     reset,
     formState: { isSubmitting, isLoading },
   } = useForm<OverlaySettings>({
-    resolver: zodResolver(overlaySettingsSchema),
+    resolver: zodResolver(overlaySettingsSchema) as Resolver<OverlaySettings>,
     defaultValues: async () => {
       const settings = await getOverlaySettings()
       setLoadedEnabled(settings.enabled)

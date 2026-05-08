@@ -35,10 +35,9 @@ const OverlayKometaPage = () => {
   const { data: settings, isLoading: isSettingsLoading } = useOverlaySettings()
   const updateSettings = useUpdateOverlaySettings()
 
-  // --- Kometa Globals ---
-  const [enabled, setEnabled] = useState(false)
-  const [urgentDays, setUrgentDays] = useState(3)
-  const [warningDays, setWarningDays] = useState(10)
+  const [enabled, setEnabled] = useState(() => settings?.kometaEnabled ?? false)
+  const [urgentDays, setUrgentDays] = useState(() => settings?.kometaUrgentDays ?? 3)
+  const [warningDays, setWarningDays] = useState(() => settings?.kometaWarningDays ?? 10)
   const [saving, setSaving] = useState(false)
 
   // --- Editor State ---
@@ -52,9 +51,6 @@ const OverlayKometaPage = () => {
   const [fontLoadVersion, setFontLoadVersion] = useState(0)
   const [imageLoadVersion, setImageLoadVersion] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [mobileTab, setMobileTab] = useState<
-    'tools' | 'layers' | 'properties' | 'kometa'
-  >('kometa')
 
   const canvasDefaults = POSTER_CANVAS
 
@@ -73,17 +69,19 @@ const OverlayKometaPage = () => {
     [elements, selectedId],
   )
 
-  // --- Init Settings ---
+  // Sync kometa settings when they change on the server (e.g. after save or
+  // initial load). Depending on individual primitive fields avoids running
+  // whenever unrelated settings change and prevents cascading renders.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (settings) {
-      setEnabled(settings.kometaEnabled ?? false)
-      setUrgentDays(settings.kometaUrgentDays ?? 3)
-      setWarningDays(settings.kometaWarningDays ?? 10)
-
-      // TODO: spaeter laden wir hier settings.kometaElements
-      // resetElements(settings.kometaElements ?? [])
-    }
-  }, [settings, resetElements])
+    if (!settings) return
+    setEnabled(settings.kometaEnabled ?? false)
+    setUrgentDays(settings.kometaUrgentDays ?? 3)
+    setWarningDays(settings.kometaWarningDays ?? 10)
+    // TODO: spaeter laden wir hier settings.kometaElements
+    // resetElements(settings.kometaElements ?? [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.kometaEnabled, settings?.kometaUrgentDays, settings?.kometaWarningDays, resetElements])
 
   // --- Load Assets ---
   useEffect(() => {

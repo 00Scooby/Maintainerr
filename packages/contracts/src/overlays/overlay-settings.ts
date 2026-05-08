@@ -26,10 +26,10 @@ export const overlaySettingsSchema = z.object({
   kometaWarningDays: z.number().catch(10).default(10),
   kometaWarningColor: z.string().catch('#F1C40F').default('#F1C40F'),
   kometaTextColor: z.string().catch('#FFFFFF').default('#FFFFFF'),
-  kometaBannerX: z.number().int().optional().default(16),
-  kometaBannerY: z.number().int().optional().default(16),
-  kometaBannerW: z.number().int().min(1).optional().default(120),
-  kometaBannerH: z.number().int().min(1).optional().default(32),
+  kometaBannerX: z.number().int().default(16),
+  kometaBannerY: z.number().int().default(16),
+  kometaBannerW: z.number().int().min(1).default(120),
+  kometaBannerH: z.number().int().min(1).default(32),
 })
 
 export const overlaySettingsUpdateSchema = overlaySettingsSchema.partial()
