@@ -48,19 +48,29 @@ export const horizontalTextAlignValues = ['left', 'center', 'right'] as const
 export const verticalTextAlignValues = ['top', 'middle', 'bottom'] as const
 export const shapeTypeValues = ['rectangle', 'ellipse'] as const
 
+// ── Kometa Segment (NEU) ──────────────────────────────────────────────────
+
+export const kometaElementConfigSchema = z.object({
+  urgentDays: z.number().int().min(1).default(3),
+  urgentColor: z.string().default('#E31E24'),
+  warningColor: z.string().default('#F1C40F'),
+})
+
+export type KometaElementConfig = z.infer<typeof kometaElementConfigSchema>
+
 // ── Variable segment ──────────────────────────────────────────────────────
 
 /**
  * A single segment inside a variable-text element.
  * Segments are concatenated at render time.
  *
- * - `type: 'text'`     → literal string
+ * - `type: 'text'`    → literal string
  * - `type: 'variable'` → substituted at render time
  *
  * Supported variable fields:
- *   {date}      – formatted deletion date
- *   {days}      – integer days remaining
- *   {daysText}  – localised "today" / "in 1 day" / "in X days"
+ * {date}      – formatted deletion date
+ * {days}      – integer days remaining
+ * {daysText}  – localised "today" / "in 1 day" / "in X days"
  */
 export const variableSegmentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), value: z.string() }),
@@ -84,6 +94,9 @@ const baseElementFields = {
   layerOrder: z.number().int().min(0),
   opacity: z.number().min(0).max(1).default(1),
   visible: z.boolean().default(true),
+
+  // NEU: Unser optionaler Kometa-Block, verfügbar für JEDES Element!
+  kometa: kometaElementConfigSchema.optional(),
 }
 
 // ── Text element ──────────────────────────────────────────────────────────
@@ -162,7 +175,7 @@ export const imageElementSchema = z.object({
   ...baseElementFields,
   type: z.literal('image'),
   /** Filename within `data/overlays/images/` (no path separators). Empty
-   *  string means the user hasn't picked a source yet. */
+   * string means the user hasn't picked a source yet. */
   imagePath: optionalSafeFilenameField(),
 })
 
