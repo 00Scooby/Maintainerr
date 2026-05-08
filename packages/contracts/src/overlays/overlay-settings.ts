@@ -18,6 +18,14 @@ export const overlaySettingsSchema = z.object({
   titleCardOverlayStyle: overlayStyleConfigSchema,
   titleCardFrame: frameConfigSchema,
   cronSchedule: z.string().nullable(),
+
+  // --- NEU: Kometa Export Settings ---
+  kometaEnabled: z.boolean().default(false),
+  kometaUrgentDays: z.number().default(3),
+  kometaUrgentColor: z.string().default('#E31E24'), // Rot
+  kometaWarningDays: z.number().default(10),
+  kometaWarningColor: z.string().default('#F1C40F'), // Gelb
+  kometaTextColor: z.string().default('#FFFFFF'), // Weiss
 })
 
 export const overlaySettingsUpdateSchema = overlaySettingsSchema.partial()
@@ -34,6 +42,14 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   titleCardOverlayStyle: DEFAULT_OVERLAY_STYLE_CONFIG,
   titleCardFrame: DEFAULT_FRAME_CONFIG,
   cronSchedule: null,
+
+  // --- NEU: Kometa Defaults ---
+  kometaEnabled: false,
+  kometaUrgentDays: 3,
+  kometaUrgentColor: '#E31E24',
+  kometaWarningDays: 10,
+  kometaWarningColor: '#F1C40F',
+  kometaTextColor: '#FFFFFF',
 }
 
 export const overlayExportSchema = z.object({
