@@ -43,6 +43,13 @@ export class OverlaySettingsService {
       titleCardOverlayStyle: entity.titleCardOverlayStyle,
       titleCardFrame: entity.titleCardFrame,
       cronSchedule: entity.cronSchedule,
+      // --- NEU: Kometa Settings durchreichen ---
+      kometaEnabled: entity.kometaEnabled ?? false,
+      kometaUrgentDays: entity.kometaUrgentDays ?? 3,
+      kometaUrgentColor: entity.kometaUrgentColor ?? '#E31E24',
+      kometaWarningDays: entity.kometaWarningDays ?? 10,
+      kometaWarningColor: entity.kometaWarningColor ?? '#F1C40F',
+      kometaTextColor: entity.kometaTextColor ?? '#FFFFFF',
     };
   }
 

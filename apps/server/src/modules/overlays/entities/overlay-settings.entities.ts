@@ -33,4 +33,23 @@ export class OverlaySettingsEntity {
 
   @Column({ type: 'varchar', nullable: true })
   cronSchedule: string | null;
+
+  // --- NEU: Kometa Integration Columns ---
+  @Column({ default: false })
+  kometaEnabled: boolean;
+
+  @Column({ default: 3 })
+  kometaUrgentDays: number;
+
+  @Column({ default: '#E31E24' })
+  kometaUrgentColor: string;
+
+  @Column({ default: 10 })
+  kometaWarningDays: number;
+
+  @Column({ default: '#F1C40F' })
+  kometaWarningColor: string;
+
+  @Column({ default: '#FFFFFF' })
+  kometaTextColor: string;
 }
