@@ -64,6 +64,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       { emit: jest.fn() } as any,
       createMockLogger(),
+      {} as any,
     );
 
     const collection = createCollection({
@@ -121,6 +122,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       { emit: jest.fn() } as any,
       createMockLogger(),
+      {} as any,
     );
 
     const collection = createCollection({
@@ -201,6 +203,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest.spyOn(service, 'applyTemplateOverlay').mockResolvedValue(true);
@@ -282,6 +285,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest.spyOn(service, 'applyTemplateOverlay').mockResolvedValue(true);
@@ -313,6 +317,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     const result = await service.processAllCollections();
@@ -346,6 +351,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     const result = await service.processAllCollections();
@@ -385,6 +391,9 @@ describe('OverlayProcessorService', () => {
     });
     const providerFactory = makeProviderFactory(provider);
     const eventEmitter = { emit: jest.fn() };
+    const kometaExportService = {
+      generateExport: jest.fn().mockResolvedValue(undefined),
+    };
 
     const service = new OverlayProcessorService(
       providerFactory as any,
@@ -395,6 +404,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      kometaExportService as any,
     );
 
     jest
@@ -447,6 +457,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -499,6 +510,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -544,6 +556,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -592,6 +605,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -647,6 +661,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -691,6 +706,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -744,6 +760,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -801,6 +818,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -850,6 +868,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest.spyOn(service as any, 'loadOriginalPoster').mockReturnValue(null);
@@ -887,6 +906,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -945,6 +965,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     jest
@@ -986,6 +1007,7 @@ describe('OverlayProcessorService', () => {
       {} as any,
       eventEmitter as any,
       createMockLogger(),
+      {} as any,
     );
 
     // No original poster stored → revertItemInternal reports no restore
