@@ -1,6 +1,6 @@
 {
   "name": "@maintainerr/ui",
-  "version": "3.10.1",
+  "version": "3.10.2",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -76,7 +76,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
   },
