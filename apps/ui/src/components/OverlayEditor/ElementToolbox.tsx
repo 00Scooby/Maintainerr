@@ -63,7 +63,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       visible: true,
       segments: isKometa
         ? [
-            { type: 'text', value: 'Noch ' },
+            { type: 'text', value: 'Leaving ' },
             { type: 'variable', field: 'daysText' },
           ]
         : [
@@ -72,7 +72,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
           ],
       fontFamily: 'Inter',
       fontPath: 'Inter-Bold.ttf',
-      fontSize: isKometa ? 48 : 36, // Etwas größerer Text für Kometa standardmäßig
+      fontSize: isKometa ? 48 : 36,
       fontColor: '#FFFFFF',
       fontWeight: 'bold',
       textAlign: 'center',
@@ -83,11 +83,11 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       shadow: false,
       uppercase: false,
       dateFormat: 'MMM d',
-      language: isKometa ? 'de' : 'en-US', // Standardmäßig Deutsch für Kometa
+      language: 'en-US',
       enableDaySuffix: false,
-      textToday: 'heute',
-      textDay: '1 Tag',
-      textDays: '{0} Tage',
+      textToday: 'today',
+      textDay: '1 day',
+      textDays: '{0} days',
       ...(isKometa && {
         kometa: {
           urgentDays: 3,
@@ -114,7 +114,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       fillColor: isKometa ? '#E31E24' : '#B20710',
       strokeColor: null,
       strokeWidth: 0,
-      cornerRadius: shape === 'rectangle' ? (isKometa ? 40 : 12) : 0, // Runde Ecken für Kometa Standard
+      cornerRadius: shape === 'rectangle' ? (isKometa ? 40 : 12) : 0,
       ...(isKometa && {
         kometa: {
           urgentDays: 3,

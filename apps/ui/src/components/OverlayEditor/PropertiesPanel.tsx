@@ -126,11 +126,65 @@ export function PropertiesPanel({
           onUploadImage={onUploadImage}
         />
       )}
+
+      {/* Kometa Smart Logic Panel */}
+      {el.kometa && <KometaProperties el={el} onChange={onChange} />}
     </div>
   )
 }
 
 // ── Type-specific sub-panels ────────────────────────────────────────────────
+
+function KometaProperties({
+  el,
+  onChange,
+}: {
+  el: OverlayElement
+  onChange: (el: OverlayElement) => void
+}) {
+  const kometa = el.kometa
+  if (!kometa) return null
+
+  const updateKometa = (key: keyof typeof kometa, value: string | number) => {
+    onChange({
+      ...el,
+      kometa: {
+        ...kometa,
+        [key]: value,
+      },
+    })
+  }
+
+  return (
+    <div className="mt-2 rounded-md border border-amber-900/50 bg-amber-950/20 p-3">
+      <label className="mb-3 block text-[10px] font-bold uppercase tracking-wider text-amber-500">
+        Smart Thresholds
+      </label>
+      <div className="flex flex-col gap-2">
+        <NumberField
+          label="Days"
+          value={kometa.urgentDays}
+          onChange={(v) => updateKometa('urgentDays', v)}
+          min={1}
+        />
+        <ColorField
+          label="Urgent"
+          value={kometa.urgentColor}
+          onChange={(v) => updateKometa('urgentColor', v)}
+        />
+        <ColorField
+          label="Warning"
+          value={kometa.warningColor}
+          onChange={(v) => updateKometa('warningColor', v)}
+        />
+        <p className="mt-1 text-[10px] leading-tight text-amber-500/70">
+          Items with &gt; {kometa.urgentDays} days left will automatically
+          switch to the Warning color.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function TextProperties({
   el,

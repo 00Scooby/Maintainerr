@@ -24,6 +24,8 @@ interface OverlayCanvasProps {
   backgroundUrl?: string | null
   fontLoadVersion?: number
   imageLoadVersion?: number
+  // NEU: Der Modus aus unserem globalen Toggle!
+  kometaPreviewMode?: 'urgent' | 'warning'
 }
 
 const MAX_DISPLAY_HEIGHT = 600
@@ -42,6 +44,7 @@ export function OverlayCanvas({
   backgroundUrl,
   fontLoadVersion = 0,
   imageLoadVersion = 0,
+  kometaPreviewMode = 'urgent', // Standardmässig auf Urgent
 }: OverlayCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
@@ -50,10 +53,6 @@ export function OverlayCanvas({
     image: HTMLImageElement
     url: string
   } | null>(null)
-  // Cache of decoded bitmaps keyed by `${imagePath}@${version}`. Including
-  // the version in the key means an upload that overwrites an existing
-  // filename creates a fresh entry instead of serving stale bytes — without
-  // needing a synchronous cache-clear effect.
   const [loadedImages, setLoadedImages] = useState<
     Record<string, HTMLImageElement>
   >({})
@@ -62,7 +61,6 @@ export function OverlayCanvas({
     height: number
   }>({ width: 0, height: 0 })
 
-  // Observe container dimensions
   useEffect(() => {
     const node = containerRef.current
     if (!node) return
@@ -78,7 +76,6 @@ export function OverlayCanvas({
     return () => observer.disconnect()
   }, [])
 
-  // Scale to fit available container while preserving aspect ratio
   const availableHeight =
     containerSize.height > 0
       ? Math.min(
@@ -94,7 +91,6 @@ export function OverlayCanvas({
   const displayW = Math.max(1, Math.round(canvasWidth * scale))
   const displayH = Math.max(1, Math.round(canvasHeight * scale))
 
-  // Load background image when URL changes
   useEffect(() => {
     if (!backgroundUrl) {
       return
@@ -118,16 +114,6 @@ export function OverlayCanvas({
     }
   }, [backgroundUrl])
 
-  // Load bytes for every distinct image element so the canvas can show the
-  // real artwork instead of a gray placeholder. `imageLoadVersion` is bumped
-  // by the parent on a fresh upload, which busts the cache for files
-  // overwritten in place. Prunes entries no longer referenced so a deleted
-  // element doesn't keep its bitmap pinned in memory.
-  //
-  // Visibility is intentionally NOT part of this key: hiding an element
-  // would otherwise evict its decoded bitmap, and toggling it back on
-  // would force a fresh fetch + placeholder flash. Visibility only
-  // affects what gets drawn (see `sorted` below), not what gets cached.
   const imagePathKey = useMemo(
     () =>
       Array.from(
@@ -155,12 +141,6 @@ export function OverlayCanvas({
       imagePaths.map((p) => imageCacheKey(p, imageLoadVersion)),
     )
 
-    // Prune entries that are no longer reachable: stale versions after an
-    // upload, and orphans from removed elements. Deferred to a microtask so
-    // the setState lands outside the effect body — same observable timing
-    // as a synchronous call (still pre-paint), but doesn't trip the
-    // `react-hooks/set-state-in-effect` static check. Identity-preserving:
-    // returns `prev` when nothing changed so it never causes a re-render.
     queueMicrotask(() => {
       if (cancelled) return
       setLoadedImages((prev) => {
@@ -179,9 +159,6 @@ export function OverlayCanvas({
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         if (cancelled) return
-        // setState in onload is async (post-effect), so this avoids the
-        // cascading-render trap of synchronously calling setState in the
-        // effect body itself.
         setLoadedImages((prev) =>
           prev[key] === img ? prev : { ...prev, [key]: img },
         )
@@ -194,7 +171,6 @@ export function OverlayCanvas({
     }
   }, [imagePaths, imageLoadVersion])
 
-  // Attach transformer to selected shape
   useEffect(() => {
     if (!trRef.current || !stageRef.current) return
     const stage = stageRef.current
@@ -241,7 +217,6 @@ export function OverlayCanvas({
       const scaleXNode = node.scaleX()
       const scaleYNode = node.scaleY()
 
-      // Reset scale and apply to width/height
       node.scaleX(1)
       node.scaleY(1)
 
@@ -316,6 +291,7 @@ export function OverlayCanvas({
                 scale={scale}
                 loadedImages={loadedImages}
                 imageLoadVersion={imageLoadVersion}
+                kometaPreviewMode={kometaPreviewMode}
                 onSelect={() => onSelect(el.id)}
                 onDragEnd={(e) => handleDragEnd(el, e)}
                 onTransformEnd={(e) => handleTransformEnd(el, e)}
@@ -348,6 +324,7 @@ function ElementRenderer({
   scale,
   loadedImages,
   imageLoadVersion,
+  kometaPreviewMode, // NEU: Wird hier reingereicht
   onSelect,
   onDragEnd,
   onTransformEnd,
@@ -356,6 +333,7 @@ function ElementRenderer({
   scale: number
   loadedImages: Record<string, HTMLImageElement>
   imageLoadVersion: number
+  kometaPreviewMode: 'urgent' | 'warning'
   onSelect: () => void
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void
   onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void
@@ -380,6 +358,15 @@ function ElementRenderer({
     onTransformEnd,
   }
 
+  // NEU: Dynamische Farbe berechnen
+  // Wenn das Element einen Kometa-Block hat, nehmen wir die Farbe des aktuellen Preview-Modes.
+  // Wenn nicht, lassen wir `smartColor` leer (null).
+  const smartColor = el.kometa
+    ? kometaPreviewMode === 'warning'
+      ? el.kometa.warningColor
+      : el.kometa.urgentColor
+    : null
+
   switch (el.type) {
     case 'text': {
       const textValue = el.uppercase ? el.text.toUpperCase() : el.text
@@ -387,6 +374,9 @@ function ElementRenderer({
         el.fontPath,
         el.fontFamily,
       )
+      // Bei Texten ueberschreiben wir die fontColor!
+      const finalFontColor = smartColor || el.fontColor
+
       return (
         <Group {...commonProps}>
           {el.backgroundColor && (
@@ -404,7 +394,7 @@ function ElementRenderer({
             fontSize={el.fontSize * scale}
             fontFamily={previewFontFamily}
             fontStyle={el.fontWeight}
-            fill={el.fontColor}
+            fill={finalFontColor}
             align={el.textAlign}
             verticalAlign={el.verticalAlign}
             padding={el.backgroundPadding * scale}
@@ -429,6 +419,9 @@ function ElementRenderer({
         el.fontPath,
         el.fontFamily,
       )
+      // Bei Variablen überschreiben wir die fontColor!
+      const finalFontColor = smartColor || el.fontColor
+
       return (
         <Group {...commonProps}>
           {el.backgroundColor && (
@@ -446,7 +439,7 @@ function ElementRenderer({
             fontSize={el.fontSize * scale}
             fontFamily={previewFontFamily}
             fontStyle={el.fontWeight}
-            fill={el.fontColor}
+            fill={finalFontColor}
             align={el.textAlign}
             verticalAlign={el.verticalAlign}
             padding={el.backgroundPadding * scale}
@@ -460,17 +453,19 @@ function ElementRenderer({
       )
     }
 
-    case 'shape':
+    case 'shape': {
+      // Bei Shapes überschreiben wir die fillColor!
+      const finalFillColor = smartColor || el.fillColor
+
       if (el.shapeType === 'ellipse') {
         return (
           <Ellipse
             {...commonProps}
-            // Konva Ellipse uses center offset and radii
             x={x + w / 2}
             y={y + h / 2}
             radiusX={w / 2}
             radiusY={h / 2}
-            fill={el.fillColor}
+            fill={finalFillColor}
             stroke={el.strokeColor ?? undefined}
             strokeWidth={el.strokeWidth * scale}
           />
@@ -479,22 +474,19 @@ function ElementRenderer({
       return (
         <Rect
           {...commonProps}
-          fill={el.fillColor}
+          fill={finalFillColor}
           stroke={el.strokeColor ?? undefined}
           strokeWidth={el.strokeWidth * scale}
           cornerRadius={el.cornerRadius * scale}
         />
       )
+    }
 
     case 'image': {
       const loaded = el.imagePath
         ? loadedImages[imageCacheKey(el.imagePath, imageLoadVersion)]
         : undefined
       if (loaded) {
-        // Mirror the server's sharp `fit: 'contain'`: scale to fit the
-        // bounding box while preserving aspect ratio, centred, padded with
-        // transparent space — never stretched. Keeps the editor preview
-        // visually identical to the rendered output.
         const naturalW = loaded.naturalWidth || w
         const naturalH = loaded.naturalHeight || h
         const fitScale = Math.min(w / naturalW, h / naturalH)
