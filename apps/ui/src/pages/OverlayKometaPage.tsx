@@ -1,5 +1,9 @@
 import { Switch } from '@headlessui/react'
-import { CloudDownloadIcon, RefreshIcon } from '@heroicons/react/solid'
+import {
+  CloudDownloadIcon,
+  InformationCircleIcon,
+  RefreshIcon,
+} from '@heroicons/react/solid'
 import type { OverlayElement } from '@maintainerr/contracts'
 import { POSTER_CANVAS } from '@maintainerr/contracts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -10,8 +14,6 @@ import {
   getOverlayImages,
   getOverlaySections,
   getRandomItem,
-  uploadFont,
-  uploadOverlayImage,
   useOverlaySettings,
   useUpdateOverlaySettings,
 } from '../api/overlays'
@@ -24,12 +26,8 @@ import { ElementToolbox } from '../components/OverlayEditor/ElementToolbox'
 import { LayerPanel } from '../components/OverlayEditor/LayerPanel'
 import { OverlayCanvas } from '../components/OverlayEditor/OverlayCanvas'
 import { PropertiesPanel } from '../components/OverlayEditor/PropertiesPanel'
-import {
-  invalidateOverlayEditorFont,
-  loadOverlayEditorFonts,
-} from '../components/OverlayEditor/editorFonts'
+import { loadOverlayEditorFonts } from '../components/OverlayEditor/editorFonts'
 import { useUndoRedo } from '../hooks/useUndoRedo'
-import { getApiErrorMessage } from '../utils/ApiError'
 
 const OverlayKometaPage = () => {
   const { data: settings, isLoading: isSettingsLoading } = useOverlaySettings()
@@ -74,8 +72,6 @@ const OverlayKometaPage = () => {
   useEffect(() => {
     if (!settings) return
     setEnabled(settings.kometaEnabled ?? false)
-    // TODO: resetElements(settings.kometaElements ?? [])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.kometaEnabled, resetElements])
 
   // --- Load Assets ---
@@ -110,42 +106,37 @@ const OverlayKometaPage = () => {
     }
   }, [fonts])
 
-  // --- Editor Handlers ---
-  const handleUploadFont = useCallback(async (file: File) => {
+  // --- Handlers ---
+  const handleSave = async () => {
+    setSaving(true)
     try {
-      const result = await uploadFont(file)
-      if (result) {
-        invalidateOverlayEditorFont(result.name)
-        const updated = await getOverlayFonts()
-        if (updated) setFonts(updated)
-        toast.success(`Font "${result.name}" uploaded`)
-        return result
-      }
-    } catch {
-      toast.error('Failed to upload font')
-    }
-    return null
-  }, [])
-
-  const handleUploadImage = useCallback(async (file: File) => {
-    let result = null
-    try {
-      result = await uploadOverlayImage(file)
+      await updateSettings.mutateAsync({
+        kometaEnabled: enabled,
+      })
+      toast.success('Design saved successfully!')
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Failed to upload image'))
-      return null
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
     }
-    if (!result) return null
-    setImageLoadVersion((v) => v + 1)
-    toast.success(`Image "${result.name}" uploaded`)
+  }
+
+  const handleExportNow = async () => {
+    if (!selectedSection) {
+      toast.info('Please select a collection first.')
+      return
+    }
+    setExporting(true)
     try {
-      const updated = await getOverlayImages()
-      if (updated) setImages(updated)
-    } catch {
-      /* Swallowed */
+      const collectionTitle =
+        sections.find((s) => s.key === selectedSection)?.title || 'Collection'
+      toast.success(`Export for "${collectionTitle}" triggered!`)
+    } catch (err) {
+      toast.error('Export failed.')
+    } finally {
+      setExporting(false)
     }
-    return result
-  }, [])
+  }
 
   const loadRandomPoster = useCallback(async () => {
     if (!selectedSection) return
@@ -165,7 +156,6 @@ const OverlayKometaPage = () => {
     }
   }, [selectedSection])
 
-  // --- Keyboard Shortcuts ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
@@ -189,7 +179,6 @@ const OverlayKometaPage = () => {
     return () => window.removeEventListener('keydown', handler)
   }, [undo, redo, selectedId, setElements])
 
-  // --- Element Handlers ---
   const handleAddElement = useCallback(
     (el: OverlayElement) => {
       setElements((prev) => [...prev, el])
@@ -219,42 +208,6 @@ const OverlayKometaPage = () => {
     [setElements],
   )
 
-  // --- Save Handler ---
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await updateSettings.mutateAsync({
-        kometaEnabled: enabled,
-        // TODO: kometaElements: elements
-      })
-      toast.success('Kometa Design saved successfully!')
-    } catch (err) {
-      toast.error('Failed to save settings')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // --- Export Handler ---
-  const handleExportNow = async () => {
-    if (!selectedSection) {
-      toast.info('Please select a collection first.')
-      return
-    }
-    setExporting(true)
-    try {
-      // TODO: Hier rufen wir spaeter die API fuer den manuellen Export auf
-      // await exportKometaCollection(selectedSection)
-      const collectionTitle =
-        sections.find((s) => s.key === selectedSection)?.title || 'Collection'
-      toast.success(`Export for "${collectionTitle}" triggered!`)
-    } catch (err) {
-      toast.error('Export failed.')
-    } finally {
-      setExporting(false)
-    }
-  }
-
   if (isSettingsLoading)
     return (
       <div className="flex h-full items-center justify-center">
@@ -264,190 +217,191 @@ const OverlayKometaPage = () => {
 
   return (
     <>
-      <div className="flex h-full w-full flex-col">
-        <div className="section w-full shrink-0">
-          <h3 className="heading">Kometa Export Design</h3>
-          <p className="description">
-            Add a Kometa Banner element from the toolbox to design your
-            countdown. Thresholds and colors are set directly on the element!
-          </p>
-        </div>
+      {/* Wrapper entfernt, originale Maintainerr-Struktur wiederhergestellt */}
+      <div className="section">
+        <h3 className="heading">Kometa Export Design</h3>
+        <p className="description">
+          Design your smart countdown banners. Thresholds and colors are set
+          individually on each element.
+        </p>
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-500/90">
+          <InformationCircleIcon className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            To use overlays, map your export folder in docker-compose:
+            <code className="ml-1 rounded border border-amber-500/20 bg-amber-950/20 px-1.5 py-0.5 text-zinc-300">
+              - ./data/kometa_export:/app/kometa_export
+            </code>
+          </span>
+        </p>
+      </div>
 
-        <PageControlRow
-          actions={
-            <>
-              {/* Export Toggle */}
-              <div className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5">
-                <span className="text-xs font-bold uppercase tracking-wider text-white">
-                  Export
-                </span>
-                <Switch
-                  checked={enabled}
-                  onChange={setEnabled}
-                  className={`${enabled ? 'bg-amber-600' : 'bg-zinc-700'} relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
-                >
-                  <span
-                    className={`${enabled ? 'translate-x-3' : 'translate-x-0'} pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-                  />
-                </Switch>
-              </div>
-
-              <div className="mx-1 h-6 w-px bg-zinc-700" />
-
-              <Button
-                className="h-10 px-3"
-                type="button"
-                onClick={undo}
-                disabled={!canUndo}
+      <PageControlRow
+        actions={
+          <>
+            <div className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-white">
+                Export
+              </span>
+              <Switch
+                checked={enabled}
+                onChange={setEnabled}
+                className={`${enabled ? 'bg-amber-600' : 'bg-zinc-700'} relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
               >
-                Prev
-              </Button>
-              <SaveButton
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                isPending={saving}
-                label="Save Design"
-                pendingLabel="Saving..."
-              />
-              <Button
-                className="h-10 px-3"
-                type="button"
-                onClick={redo}
-                disabled={!canRedo}
-              >
-                Next
-              </Button>
-
-              <div className="mx-2 h-6 w-px bg-zinc-700" />
-
-              {/* Canvas Preview Mode Toggle */}
-              <div className="flex items-center justify-center space-x-3 rounded-md border border-zinc-700 bg-zinc-900 p-2 text-xs">
                 <span
-                  className={`font-bold uppercase ${previewMode === 'urgent' ? 'text-amber-500' : 'text-zinc-500'}`}
-                >
-                  Urgent
-                </span>
-                <Switch
-                  checked={previewMode === 'warning'}
-                  onChange={(val) => setPreviewMode(val ? 'warning' : 'urgent')}
-                  className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-zinc-700 transition-colors duration-200 ease-in-out focus:outline-none"
-                >
-                  <span
-                    className={`${previewMode === 'warning' ? 'translate-x-4' : 'translate-x-0'} pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-                  />
-                </Switch>
-                <span
-                  className={`font-bold uppercase ${previewMode === 'warning' ? 'text-amber-500' : 'text-zinc-500'}`}
-                >
-                  Warning
-                </span>
-              </div>
-
-              <div className="mx-2 h-6 w-px bg-zinc-700" />
-
-              {/* Collection Picker + Export Now */}
-              <div className="flex items-center gap-2">
-                <Select
-                  className="w-56"
-                  name="background-section"
-                  value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                >
-                  <option value="">Select Collection...</option>
-                  {sections.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.title}
-                    </option>
-                  ))}
-                </Select>
-
-                {selectedSection && (
-                  <>
-                    <button
-                      type="button"
-                      className="shrink-0 rounded p-1 text-zinc-400 transition hover:text-zinc-200"
-                      onClick={loadRandomPoster}
-                      title="Load different poster"
-                    >
-                      <RefreshIcon className="h-4 w-4" />
-                    </button>
-                    <Button
-                      variant="primary"
-                      className="flex h-9 items-center gap-2 px-3"
-                      onClick={handleExportNow}
-                      disabled={exporting}
-                    >
-                      {exporting ? (
-                        <LoadingSpinner />
-                      ) : (
-                        <CloudDownloadIcon className="h-4 w-4" />
-                      )}
-                      <span>Export Now</span>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </>
-          }
-          controlsClassName="sm:w-auto"
-        />
-
-        {/* --- Editor Main Area --- */}
-        <div className="mt-4 flex h-[60vh] min-h-[24rem] flex-col border-t border-zinc-700 lg:flex-row">
-          {/* Left: Toolbox */}
-          <div className="hidden w-48 shrink-0 overflow-y-auto border-r border-zinc-700 p-3 lg:block">
-            <ElementToolbox
-              mode="poster"
-              onAdd={handleAddElement}
-              nextLayerOrder={elements.length}
-            />
-          </div>
-
-          {/* Center: Canvas */}
-          <div className="flex min-h-[200px] flex-1 items-center justify-center overflow-auto bg-zinc-900/50 p-4">
-            <OverlayCanvas
-              elements={elements}
-              canvasWidth={canvasDefaults.width}
-              canvasHeight={canvasDefaults.height}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onUpdate={handleUpdateElement}
-              backgroundUrl={backgroundUrl}
-              fontLoadVersion={fontLoadVersion}
-              imageLoadVersion={imageLoadVersion}
-              kometaPreviewMode={previewMode}
-            />
-          </div>
-
-          {/* Right: Layers + Properties */}
-          <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-zinc-700 bg-zinc-900/30 lg:block">
-            <div className="border-b border-zinc-700 p-3">
-              <LayerPanel
-                elements={elements}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onReorder={handleReorder}
-                onDelete={handleDeleteElement}
-              />
+                  className={`${enabled ? 'translate-x-3' : 'translate-x-0'} pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                />
+              </Switch>
             </div>
 
-            <div className="p-3">
-              {selectedElement ? (
-                <PropertiesPanel
-                  element={selectedElement}
-                  onChange={handleUpdateElement}
-                  fonts={fonts}
-                  onUploadFont={handleUploadFont}
-                  images={images}
-                  onUploadImage={handleUploadImage}
+            <div className="mx-1 h-6 w-px bg-zinc-700" />
+
+            <Button
+              className="h-10 px-3"
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+            >
+              Prev
+            </Button>
+            <SaveButton
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              isPending={saving}
+              label="Save Design"
+              pendingLabel="Saving..."
+            />
+            <Button
+              className="h-10 px-3"
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+            >
+              Next
+            </Button>
+
+            <div className="mx-2 h-6 w-px bg-zinc-700" />
+
+            <div className="flex items-center justify-center space-x-3 rounded-md border border-zinc-700 bg-zinc-900 p-2 text-xs">
+              <span
+                className={`font-bold uppercase ${previewMode === 'urgent' ? 'text-amber-500' : 'text-zinc-500'}`}
+              >
+                Urgent
+              </span>
+              <Switch
+                checked={previewMode === 'warning'}
+                onChange={(val) => setPreviewMode(val ? 'warning' : 'urgent')}
+                className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-zinc-700 transition-colors duration-200 ease-in-out focus:outline-none"
+              >
+                <span
+                  className={`${previewMode === 'warning' ? 'translate-x-4' : 'translate-x-0'} pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
                 />
-              ) : (
-                <p className="mt-4 text-center text-xs text-zinc-500">
-                  Select an element to edit its properties
-                </p>
+              </Switch>
+              <span
+                className={`font-bold uppercase ${previewMode === 'warning' ? 'text-amber-500' : 'text-zinc-500'}`}
+              >
+                Warning
+              </span>
+            </div>
+
+            <div className="mx-2 h-6 w-px bg-zinc-700" />
+
+            <div className="flex items-center gap-2">
+              <Select
+                className="w-56"
+                name="background-section"
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+              >
+                <option value="">Select Collection...</option>
+                {sections.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.title}
+                  </option>
+                ))}
+              </Select>
+
+              {selectedSection && (
+                <>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded p-1 text-zinc-400 transition hover:text-zinc-200"
+                    onClick={loadRandomPoster}
+                    title="Load random poster"
+                  >
+                    <RefreshIcon className="h-4 w-4" />
+                  </button>
+                  <Button
+                    variant="primary"
+                    className="flex h-9 items-center gap-2 px-3"
+                    onClick={handleExportNow}
+                    disabled={exporting}
+                  >
+                    {exporting ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <CloudDownloadIcon className="h-4 w-4" />
+                    )}
+                    <span>Export Now</span>
+                  </Button>
+                </>
               )}
             </div>
+          </>
+        }
+        controlsClassName="sm:w-auto"
+      />
+
+      <div className="mt-4 flex h-[60vh] min-h-[24rem] flex-col border-t border-zinc-700 lg:flex-row">
+        <div className="hidden w-48 shrink-0 overflow-y-auto border-r border-zinc-700 p-3 lg:block">
+          <ElementToolbox
+            mode="poster"
+            onAdd={handleAddElement}
+            nextLayerOrder={elements.length}
+          />
+        </div>
+
+        <div className="flex min-h-[200px] flex-1 items-center justify-center overflow-auto bg-zinc-900/50 p-4">
+          <OverlayCanvas
+            elements={elements}
+            canvasWidth={canvasDefaults.width}
+            canvasHeight={canvasDefaults.height}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onUpdate={handleUpdateElement}
+            backgroundUrl={backgroundUrl}
+            fontLoadVersion={fontLoadVersion}
+            imageLoadVersion={imageLoadVersion}
+            kometaPreviewMode={previewMode}
+          />
+        </div>
+
+        <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-zinc-700 bg-zinc-900/30 lg:block">
+          <div className="border-b border-zinc-700 p-3">
+            <LayerPanel
+              elements={elements}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onReorder={handleReorder}
+              onDelete={handleDeleteElement}
+            />
+          </div>
+
+          <div className="p-3">
+            {selectedElement ? (
+              <PropertiesPanel
+                element={selectedElement}
+                onChange={handleUpdateElement}
+                fonts={fonts}
+                onUploadFont={handleUploadFont}
+                images={images}
+                onUploadImage={handleUploadImage}
+              />
+            ) : (
+              <p className="mt-4 text-center text-xs text-zinc-500">
+                Select an element to edit its properties
+              </p>
+            )}
           </div>
         </div>
       </div>
