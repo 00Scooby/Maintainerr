@@ -4,6 +4,7 @@ import {
   OVERLAY_IMAGE_FORMATS,
   OVERLAY_IMAGE_MAX_BYTES,
   OVERLAY_IMAGE_MAX_LABEL,
+  OverlayElement,
   OverlayLibrarySection,
   OverlayPreviewItem,
   OverlaySettings,
@@ -49,8 +50,8 @@ import { OverlayProcessorService } from './overlay-processor.service';
 import { OverlaySettingsService } from './overlay-settings.service';
 import { OverlayTaskService } from './overlay-task.service';
 import { OverlayTemplateService } from './overlay-template.service';
-import { IOverlayProvider } from './providers/overlay-provider.interface';
 import { OverlayProviderFactory } from './providers/overlay-provider.factory';
+import { IOverlayProvider } from './providers/overlay-provider.interface';
 
 @Controller('api/overlays')
 @UseGuards(MediaServerSetupGuard)
@@ -564,5 +565,80 @@ export class OverlaysController {
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Cache-Control', 'no-cache');
     return new StreamableFile(result.buffer);
+  }
+
+  // ── Kometa Export ───────────────────────────────────────────────────────
+
+  @Post('kometa/export')
+  async exportKometa(
+    @Body() payload: { sectionId: string; elements: OverlayElement[] },
+  ) {
+    if (!payload.sectionId) {
+      throw new HttpException('sectionId is required', HttpStatus.BAD_REQUEST);
+    }
+
+    // 1. Ordner erstellen (relativ zum configDataDir, also /data/kometa_export)
+    const exportDir = path.join(configDataDir, 'kometa_export');
+    if (!fs.existsSync(exportDir)) {
+      fs.mkdirSync(exportDir, { recursive: true });
+    }
+
+    // 2. Wir filtern nach unseren smarten Kometa-Elementen
+    const kometaElements = payload.elements.filter((el) => el.kometa);
+
+    // Wenn keine Smart-Elemente da sind, nehmen wir Default-Werte für das YAML
+    const urgentDays =
+      kometaElements.length > 0 ? kometaElements[0].kometa?.urgentDays : 3;
+
+    // 3. YAML String zusammenbauen (Das können wir später noch exakt an Kometas Syntax anpassen)
+    const yamlContent =
+      `
+# Maintainerr Kometa Export
+# Section: ${payload.sectionId}
+# Generated at: ${new Date().toISOString()}
+
+templates:
+  maintainerr_urgent:
+    overlay:
+      name: maintainerr_urgent
+      group: maintainerr
+      weight: 100
+      run_again: true
+
+  maintainerr_warning:
+    overlay:
+      name: maintainerr_warning
+      group: maintainerr
+      weight: 90
+      run_again: true
+
+collections:
+  "Maintainerr Countdown":
+    template:
+      - name: maintainerr_warning
+    maintainerr:
+      days_left:
+        # Alles groesser als ${urgentDays} Tage ist eine Warnung
+        greater_than: ${urgentDays}
+
+  "Maintainerr Urgent":
+    template:
+      - name: maintainerr_urgent
+    maintainerr:
+      days_left:
+        # Alles kleiner/gleich ${urgentDays} Tage ist dringend!
+        less_than_or_equal: ${urgentDays}
+`.trim() + '\n';
+
+    // 4. Datei schreiben
+    const safeSectionId = sanitizeFilenameChars(payload.sectionId);
+    const fileName = `maintainerr_${safeSectionId}.yml`;
+    const filePath = path.join(exportDir, fileName);
+
+    fs.writeFileSync(filePath, yamlContent, 'utf8');
+
+    this.logger.log(`Kometa YAML exported successfully to ${filePath}`);
+
+    return { success: true, path: filePath, fileName };
   }
 }

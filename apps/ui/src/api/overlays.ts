@@ -197,3 +197,14 @@ export const buildTemplatePreviewUrl = (
   if (cacheBust) params.set('_t', String(cacheBust))
   return `${API_BASE_PATH}/api/overlays/templates/${templateId}/preview?${params.toString()}`
 }
+
+// ── Kometa Export ─────────────────────────────────────────────────────────
+
+export const exportKometaCollection = (payload: {
+  sectionId: string
+  elements: any[]
+}) =>
+  PostApiHandler<{ success: boolean; path: string; fileName: string }>(
+    '/overlays/kometa/export',
+    payload,
+  )

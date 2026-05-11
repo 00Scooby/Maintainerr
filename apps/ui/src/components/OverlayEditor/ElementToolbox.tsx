@@ -53,10 +53,10 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
     onAdd({
       id: uid(),
       type: 'variable',
-      x: 50,
-      y: 50,
-      width: 350,
-      height: 60,
+      x: isKometa ? 20 : 50,
+      y: isKometa ? 20 : 50,
+      width: isKometa ? 380 : 350,
+      height: isKometa ? 80 : 60,
       rotation: 0,
       layerOrder: nextLayerOrder,
       opacity: 1,
@@ -72,7 +72,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
           ],
       fontFamily: 'Inter',
       fontPath: 'Inter-Bold.ttf',
-      fontSize: isKometa ? 48 : 36,
+      fontSize: isKometa ? 40 : 36,
       fontColor: '#FFFFFF',
       fontWeight: 'bold',
       textAlign: 'center',
@@ -91,8 +91,8 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       ...(isKometa && {
         kometa: {
           urgentDays: 3,
-          urgentColor: '#E31E24',
-          warningColor: '#F1C40F',
+          urgentColor: '#ffffff',
+          warningColor: '#000000',
         },
       }),
     })
@@ -102,9 +102,9 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
     onAdd({
       id: uid(),
       type: 'shape',
-      x: 50,
-      y: 50,
-      width: isKometa ? 400 : 200,
+      x: isKometa ? 20 : 50,
+      y: isKometa ? 20 : 50,
+      width: isKometa ? 380 : 200,
       height: shape === 'ellipse' ? 200 : isKometa ? 80 : 60,
       rotation: 0,
       layerOrder: nextLayerOrder,
@@ -114,7 +114,7 @@ export function ElementToolbox({ onAdd, nextLayerOrder }: ElementToolboxProps) {
       fillColor: isKometa ? '#E31E24' : '#B20710',
       strokeColor: null,
       strokeWidth: 0,
-      cornerRadius: shape === 'rectangle' ? (isKometa ? 40 : 12) : 0,
+      cornerRadius: shape === 'rectangle' ? (isKometa ? 20 : 12) : 0,
       ...(isKometa && {
         kometa: {
           urgentDays: 3,

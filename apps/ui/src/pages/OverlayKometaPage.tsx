@@ -10,10 +10,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import {
   buildItemImageUrl,
+  exportKometaCollection,
   getOverlayFonts,
   getOverlayImages,
   getOverlaySections,
   getRandomItem,
+  uploadFont,
+  uploadOverlayImage,
   useOverlaySettings,
   useUpdateOverlaySettings,
 } from '../api/overlays'
@@ -26,8 +29,12 @@ import { ElementToolbox } from '../components/OverlayEditor/ElementToolbox'
 import { LayerPanel } from '../components/OverlayEditor/LayerPanel'
 import { OverlayCanvas } from '../components/OverlayEditor/OverlayCanvas'
 import { PropertiesPanel } from '../components/OverlayEditor/PropertiesPanel'
-import { loadOverlayEditorFonts } from '../components/OverlayEditor/editorFonts'
+import {
+  invalidateOverlayEditorFont,
+  loadOverlayEditorFonts,
+} from '../components/OverlayEditor/editorFonts'
 import { useUndoRedo } from '../hooks/useUndoRedo'
+import { getApiErrorMessage } from '../utils/ApiError'
 
 const OverlayKometaPage = () => {
   const { data: settings, isLoading: isSettingsLoading } = useOverlaySettings()
@@ -106,7 +113,44 @@ const OverlayKometaPage = () => {
     }
   }, [fonts])
 
-  // --- Handlers ---
+  // --- WIEDER DA: Upload Handlers für das Properties Panel ---
+  const handleUploadFont = useCallback(async (file: File) => {
+    try {
+      const result = await uploadFont(file)
+      if (result) {
+        invalidateOverlayEditorFont(result.name)
+        const updated = await getOverlayFonts()
+        if (updated) setFonts(updated)
+        toast.success(`Font "${result.name}" uploaded`)
+        return result
+      }
+    } catch {
+      toast.error('Failed to upload font')
+    }
+    return null
+  }, [])
+
+  const handleUploadImage = useCallback(async (file: File) => {
+    let result = null
+    try {
+      result = await uploadOverlayImage(file)
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to upload image'))
+      return null
+    }
+    if (!result) return null
+    setImageLoadVersion((v) => v + 1)
+    toast.success(`Image "${result.name}" uploaded`)
+    try {
+      const updated = await getOverlayImages()
+      if (updated) setImages(updated)
+    } catch {
+      /* Swallowed */
+    }
+    return result
+  }, [])
+
+  // --- Save / Export Handlers ---
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -128,6 +172,8 @@ const OverlayKometaPage = () => {
     }
     setExporting(true)
     try {
+      // API call ans Backend senden mit den aktuellen Canvas-Elementen!
+      await exportKometaCollection({ sectionId: selectedSection, elements })
       const collectionTitle =
         sections.find((s) => s.key === selectedSection)?.title || 'Collection'
       toast.success(`Export for "${collectionTitle}" triggered!`)
@@ -217,7 +263,6 @@ const OverlayKometaPage = () => {
 
   return (
     <>
-      {/* Wrapper entfernt, originale Maintainerr-Struktur wiederhergestellt */}
       <div className="section">
         <h3 className="heading">Kometa Export Design</h3>
         <p className="description">
@@ -393,9 +438,9 @@ const OverlayKometaPage = () => {
                 element={selectedElement}
                 onChange={handleUpdateElement}
                 fonts={fonts}
-                onUploadFont={handleUploadFont}
+                onUploadFont={handleUploadFont} // WIEDER DA!
                 images={images}
-                onUploadImage={handleUploadImage}
+                onUploadImage={handleUploadImage} // WIEDER DA!
               />
             ) : (
               <p className="mt-4 text-center text-xs text-zinc-500">
