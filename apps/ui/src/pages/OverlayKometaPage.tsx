@@ -75,7 +75,6 @@ const OverlayKometaPage = () => {
     redo,
     canUndo,
     canRedo,
-    reset: resetElements,
   } = useUndoRedo<OverlayElement[]>([])
 
   const selectedElement = useMemo(
@@ -84,9 +83,11 @@ const OverlayKometaPage = () => {
   )
 
   useEffect(() => {
-    if (!settings) return
-    setEnabled(settings.kometaEnabled ?? false)
-  }, [settings?.kometaEnabled, resetElements])
+    if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEnabled(settings.kometaEnabled ?? false)
+    }
+  }, [settings])
 
   // --- Load Assets ---
   useEffect(() => {
@@ -413,7 +414,7 @@ const OverlayKometaPage = () => {
 
               {selectedCollection && (
                 <Button
-                  variant="primary"
+                  buttonType="primary"
                   className="flex h-9 items-center gap-2 px-3"
                   onClick={handleExportNow}
                   disabled={exporting}

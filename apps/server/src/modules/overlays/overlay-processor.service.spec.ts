@@ -179,6 +179,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       { emit: jest.fn() } as any,
       createMockLogger(),
+      {} as any,
     );
 
     const collection = createCollection({
@@ -231,6 +232,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       { emit: jest.fn() } as any,
       createMockLogger(),
+      {} as any,
     );
 
     const collection = createCollection({
@@ -289,6 +291,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       { emit: jest.fn() } as any,
       createMockLogger(),
+      {} as any,
     );
 
     const collection = createCollection({
@@ -375,6 +378,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       eventEmitter as any,
       createMockLogger(),
+      { generateExport: jest.fn().mockResolvedValue(undefined) } as any,
     );
 
     jest.spyOn(service, 'applyTemplateOverlay').mockResolvedValue(true);
@@ -433,6 +437,7 @@ describe('OverlayProcessorService', () => {
       templateService as any,
       eventEmitter as any,
       createMockLogger(),
+      { generateExport: jest.fn().mockResolvedValue(undefined) } as any,
     );
 
     jest.spyOn(service, 'applyTemplateOverlay').mockResolvedValue(true);

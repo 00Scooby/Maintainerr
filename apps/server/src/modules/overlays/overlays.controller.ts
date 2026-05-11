@@ -593,20 +593,30 @@ export class OverlaysController {
       );
     }
 
-    // Collection Name aus der Datenbank holen
     const collectionIdNum = parseInt(payload.collectionId, 10);
     const collection =
       await this.collectionsService.getCollection(collectionIdNum);
-    const collectionTitle = collection?.title
-      ? collection.title
-      : payload.collectionId;
+
+    if (!collection) {
+      throw new HttpException('Collection not found', HttpStatus.NOT_FOUND);
+    }
+
+    const collectionTitle = collection.title || 'Unknown Collection';
+    const deleteDays = collection.deleteAfterDays ?? 30;
+
+    let mediaList = collection.collectionMedia;
+    if (!mediaList || mediaList.length === 0) {
+      const fetchedMedia =
+        await this.collectionsService.getCollectionMedia(collectionIdNum);
+      mediaList = fetchedMedia ?? [];
+    }
 
     const exportDir = path.join(configDataDir, 'kometa_export');
     if (!fs.existsSync(exportDir)) {
       fs.mkdirSync(exportDir, { recursive: true });
     }
 
-    // --- 1. UI-Werte auslesen (mit 'as any' fuer den TS-Compiler) ---
+    // --- 1. UI-Werte auslesen ---
     const bg = payload.elements.find(
       (el) => el.type === 'shape' && el.kometa,
     ) as any;
@@ -621,26 +631,81 @@ export class OverlaysController {
     const y = bg?.y ?? 20;
     const fontSize = txt?.fontSize ?? 40;
 
-    // --- 2. YAML zusammenbauen ---
+    const thresholdDays = bg?.kometa?.urgentDays ?? 3;
+    const bgUrgent = bg?.kometa?.urgentColor ?? '#E31E24';
+    const bgWarning = bg?.kometa?.warningColor ?? '#F1C40F';
+    const txtUrgent = txt?.kometa?.urgentColor ?? '#FFFFFF';
+    const txtWarning = txt?.kometa?.warningColor ?? '#141414';
+
+    // --- 2. Live-Berechnung ---
+    const now = new Date();
+    const yamlOverlays: string[] = [];
+
+    for (const media of mediaList) {
+      const mediaAny = media as any;
+      if (!mediaAny.addDate) continue;
+
+      const addDate = new Date(mediaAny.addDate);
+      const diffTime = Math.abs(now.getTime() - addDate.getTime());
+      const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.max(0, deleteDays - daysPassed);
+
+      const isUrgent = daysLeft <= thresholdDays;
+      const color = isUrgent ? bgUrgent : bgWarning;
+      const fontColor = isUrgent ? txtUrgent : txtWarning;
+
+      // --- HIER WIRD DAS UI AUSGELESEN! ---
+      let bannerText = '';
+      if (txt?.segments && Array.isArray(txt.segments)) {
+        for (const seg of txt.segments) {
+          if (seg.type === 'text') {
+            bannerText += seg.value;
+          } else if (seg.type === 'variable' && seg.field === 'daysText') {
+            // Logik fuer Singular/Plural aus dem UI
+            if (daysLeft === 0 && txt.textToday) {
+              bannerText += txt.textToday;
+            } else if (daysLeft === 1 && txt.textDay) {
+              bannerText += txt.textDay.replace('{0}', '1');
+            } else if (txt.textDays) {
+              bannerText += txt.textDays.replace('{0}', daysLeft.toString());
+            } else {
+              bannerText += `${daysLeft} days`; // Notfall-Fallback
+            }
+          }
+        }
+      } else {
+        // Fallback, falls gar keine Segmente da sind
+        bannerText = `Noch ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tage'}`;
+      }
+      // ------------------------------------
+
+      const rawTitle =
+        mediaAny.title ?? mediaAny.mediaItem?.title ?? mediaAny.plexItem?.title;
+      const blockName = rawTitle
+        ? String(rawTitle).replace(/"/g, '\\"')
+        : `Plex Item ${mediaAny.mediaServerId}`;
+
+      const overlayBlock = `  "${blockName}":
+    plex_id: ${mediaAny.mediaServerId}
+    template:
+      banner_text: "${bannerText.trim()}"
+      color: '${color}'
+      font_color: '${fontColor}'
+      name: days_left_banner`;
+
+      yamlOverlays.push(overlayBlock);
+    }
+
+    const overlaysSection =
+      yamlOverlays.length > 0
+        ? yamlOverlays.join('\n\n')
+        : '  # No active media found in this collection.';
+
+    // --- 3. Finales YAML ---
     const yamlContent =
       `
 overlays:
-  # TODO: Hier ziehen wir im naechsten Schritt die echten Daten aus Collection: ${collectionTitle}
-  "Beispiel Film 1 (Urgent)":
-    template:
-      banner_text: Noch 2 Tage
-      color: '${bg?.kometa?.urgentColor ?? '#E31E24'}'
-      font_color: '${txt?.kometa?.urgentColor ?? '#FFFFFF'}'
-      item_title: "Beispiel Film 1 (Urgent)"
-      name: days_left_banner
-      
-  "Beispiel Film 2 (Warning)":
-    template:
-      banner_text: Noch 14 Tage
-      color: '${bg?.kometa?.warningColor ?? '#F1C40F'}'
-      font_color: '${txt?.kometa?.warningColor ?? '#141414'}'
-      item_title: "Beispiel Film 2 (Warning)"
-      name: days_left_banner
+${overlaysSection}
 
 templates:
   days_left_banner:
@@ -656,8 +721,6 @@ templates:
       name: text(<<banner_text>>)
       vertical_align: top
       vertical_offset: ${y}
-    plex_search:
-      title: <<item_title>>
 `.trim() + '\n';
 
     const safeTitle = sanitizeFilenameChars(collectionTitle);
