@@ -35,6 +35,7 @@ import {
 } from '../components/OverlayEditor/editorFonts'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { getApiErrorMessage } from '../utils/ApiError'
+import GetApiHandler from '../utils/ApiHandler'
 
 const OverlayKometaPage = () => {
   const { data: settings, isLoading: isSettingsLoading } = useOverlaySettings()
@@ -48,10 +49,16 @@ const OverlayKometaPage = () => {
   const [previewMode, setPreviewMode] = useState<'urgent' | 'warning'>('urgent')
 
   // --- Editor State ---
+  const [collections, setCollections] = useState<
+    { id: number; title: string }[]
+  >([])
+  const [selectedCollection, setSelectedCollection] = useState('')
+
   const [sections, setSections] = useState<
     { key: string; title: string; type: string }[]
   >([])
   const [selectedSection, setSelectedSection] = useState('')
+
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
   const [fonts, setFonts] = useState<{ name: string; path: string }[]>([])
   const [images, setImages] = useState<{ name: string; path: string }[]>([])
@@ -83,11 +90,20 @@ const OverlayKometaPage = () => {
 
   // --- Load Assets ---
   useEffect(() => {
+    // 1. Hole Maintainerr Collections für den Export
+    void GetApiHandler<any[]>('/collections')
+      .then((c) => {
+        if (c) setCollections(c)
+      })
+      .catch(() => toast.warning('Could not load collections.'))
+
+    // 2. Hole Plex Libraries für die Poster-Vorschau
     void getOverlaySections()
       .then((s) => {
         if (s) setSections(s)
       })
       .catch(() => toast.warning('Could not load libraries.'))
+
     void getOverlayFonts()
       .then((f) => {
         if (f) setFonts(f)
@@ -113,7 +129,7 @@ const OverlayKometaPage = () => {
     }
   }, [fonts])
 
-  // --- WIEDER DA: Upload Handlers für das Properties Panel ---
+  // --- Handlers ---
   const handleUploadFont = useCallback(async (file: File) => {
     try {
       const result = await uploadFont(file)
@@ -150,13 +166,10 @@ const OverlayKometaPage = () => {
     return result
   }, [])
 
-  // --- Save / Export Handlers ---
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateSettings.mutateAsync({
-        kometaEnabled: enabled,
-      })
+      await updateSettings.mutateAsync({ kometaEnabled: enabled })
       toast.success('Design saved successfully!')
     } catch (err) {
       toast.error('Failed to save settings')
@@ -166,16 +179,19 @@ const OverlayKometaPage = () => {
   }
 
   const handleExportNow = async () => {
-    if (!selectedSection) {
-      toast.info('Please select a collection first.')
+    if (!selectedCollection) {
+      toast.info('Please select a target collection first.')
       return
     }
     setExporting(true)
     try {
-      // API call ans Backend senden mit den aktuellen Canvas-Elementen!
-      await exportKometaCollection({ sectionId: selectedSection, elements })
+      await exportKometaCollection({
+        collectionId: selectedCollection,
+        elements,
+      } as any)
       const collectionTitle =
-        sections.find((s) => s.key === selectedSection)?.title || 'Collection'
+        collections.find((c) => c.id.toString() === selectedCollection)
+          ?.title || 'Collection'
       toast.success(`Export for "${collectionTitle}" triggered!`)
     } catch (err) {
       toast.error('Export failed.')
@@ -184,6 +200,7 @@ const OverlayKometaPage = () => {
     }
   }
 
+  // --- Vorschau Handlers ---
   const loadRandomPoster = useCallback(async () => {
     if (!selectedSection) return
     const item = await getRandomItem(selectedSection)
@@ -351,14 +368,15 @@ const OverlayKometaPage = () => {
 
             <div className="mx-2 h-6 w-px bg-zinc-700" />
 
+            {/* NEU: Zwei Dropdowns! Eins für die Vorschau, eins für den Export */}
             <div className="flex items-center gap-2">
               <Select
-                className="w-56"
-                name="background-section"
+                className="w-48 text-sm"
+                name="preview-section"
                 value={selectedSection}
                 onChange={(e) => setSelectedSection(e.target.value)}
               >
-                <option value="">Select Collection...</option>
+                <option value="">Preview Background...</option>
                 {sections.map((s) => (
                   <option key={s.key} value={s.key}>
                     {s.title}
@@ -367,29 +385,46 @@ const OverlayKometaPage = () => {
               </Select>
 
               {selectedSection && (
-                <>
-                  <button
-                    type="button"
-                    className="shrink-0 rounded p-1 text-zinc-400 transition hover:text-zinc-200"
-                    onClick={loadRandomPoster}
-                    title="Load random poster"
-                  >
-                    <RefreshIcon className="h-4 w-4" />
-                  </button>
-                  <Button
-                    variant="primary"
-                    className="flex h-9 items-center gap-2 px-3"
-                    onClick={handleExportNow}
-                    disabled={exporting}
-                  >
-                    {exporting ? (
-                      <LoadingSpinner />
-                    ) : (
-                      <CloudDownloadIcon className="h-4 w-4" />
-                    )}
-                    <span>Export Now</span>
-                  </Button>
-                </>
+                <button
+                  type="button"
+                  className="shrink-0 rounded p-1 text-zinc-400 transition hover:text-zinc-200"
+                  onClick={loadRandomPoster}
+                  title="Load random poster"
+                >
+                  <RefreshIcon className="h-4 w-4" />
+                </button>
+              )}
+
+              <div className="mx-1 h-6 w-px bg-zinc-700" />
+
+              <Select
+                className="w-56 text-sm"
+                name="target-collection"
+                value={selectedCollection}
+                onChange={(e) => setSelectedCollection(e.target.value)}
+              >
+                <option value="">Target Collection...</option>
+                {collections.map((c) => (
+                  <option key={c.id} value={c.id.toString()}>
+                    {c.title}
+                  </option>
+                ))}
+              </Select>
+
+              {selectedCollection && (
+                <Button
+                  variant="primary"
+                  className="flex h-9 items-center gap-2 px-3"
+                  onClick={handleExportNow}
+                  disabled={exporting}
+                >
+                  {exporting ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <CloudDownloadIcon className="h-4 w-4" />
+                  )}
+                  <span>Export Now</span>
+                </Button>
               )}
             </div>
           </>
@@ -438,9 +473,9 @@ const OverlayKometaPage = () => {
                 element={selectedElement}
                 onChange={handleUpdateElement}
                 fonts={fonts}
-                onUploadFont={handleUploadFont} // WIEDER DA!
+                onUploadFont={handleUploadFont}
                 images={images}
-                onUploadImage={handleUploadImage} // WIEDER DA!
+                onUploadImage={handleUploadImage}
               />
             ) : (
               <p className="mt-4 text-center text-xs text-zinc-500">

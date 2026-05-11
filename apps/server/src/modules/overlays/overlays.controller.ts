@@ -7,6 +7,8 @@ import {
   OverlayElement,
   OverlayLibrarySection,
   OverlayPreviewItem,
+  type OverlayProcessRequest,
+  overlayProcessRequestSchema,
   OverlaySettings,
   OverlaySettingsUpdate,
   overlaySettingsUpdateSchema,
@@ -42,10 +44,6 @@ import * as fs from 'fs';
 import { ZodValidationPipe } from 'nestjs-zod';
 import * as path from 'path';
 import sharp from 'sharp';
-import {
-  type OverlayProcessRequest,
-  overlayProcessRequestSchema,
-} from '@maintainerr/contracts';
 import { dataDir as configDataDir } from '../../app/config/dataDir';
 import { MediaServerSetupGuard } from '../api/media-server/guards/media-server-setup.guard';
 import { CollectionsService } from '../collections/collections.service';
@@ -586,73 +584,91 @@ export class OverlaysController {
 
   @Post('kometa/export')
   async exportKometa(
-    @Body() payload: { sectionId: string; elements: OverlayElement[] },
+    @Body() payload: { collectionId: string; elements: OverlayElement[] },
   ) {
-    if (!payload.sectionId) {
-      throw new HttpException('sectionId is required', HttpStatus.BAD_REQUEST);
+    if (!payload.collectionId) {
+      throw new HttpException(
+        'collectionId is required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
-    // 1. Ordner erstellen (relativ zum configDataDir, also /data/kometa_export)
+    // Collection Name aus der Datenbank holen
+    const collectionIdNum = parseInt(payload.collectionId, 10);
+    const collection =
+      await this.collectionsService.getCollection(collectionIdNum);
+    const collectionTitle = collection?.title
+      ? collection.title
+      : payload.collectionId;
+
     const exportDir = path.join(configDataDir, 'kometa_export');
     if (!fs.existsSync(exportDir)) {
       fs.mkdirSync(exportDir, { recursive: true });
     }
 
-    // 2. Wir filtern nach unseren smarten Kometa-Elementen
-    const kometaElements = payload.elements.filter((el) => el.kometa);
+    // --- 1. UI-Werte auslesen (mit 'as any' fuer den TS-Compiler) ---
+    const bg = payload.elements.find(
+      (el) => el.type === 'shape' && el.kometa,
+    ) as any;
+    const txt = payload.elements.find(
+      (el) => el.type === 'variable' && el.kometa,
+    ) as any;
 
-    // Wenn keine Smart-Elemente da sind, nehmen wir Default-Werte für das YAML
-    const urgentDays =
-      kometaElements.length > 0 ? kometaElements[0].kometa?.urgentDays : 3;
+    const width = bg?.width ?? 380;
+    const height = bg?.height ?? 80;
+    const radius = bg?.cornerRadius ?? 20;
+    const x = bg?.x ?? 20;
+    const y = bg?.y ?? 20;
+    const fontSize = txt?.fontSize ?? 40;
 
-    // 3. YAML String zusammenbauen (Das können wir später noch exakt an Kometas Syntax anpassen)
+    // --- 2. YAML zusammenbauen ---
     const yamlContent =
       `
-# Maintainerr Kometa Export
-# Section: ${payload.sectionId}
-# Generated at: ${new Date().toISOString()}
+overlays:
+  # TODO: Hier ziehen wir im naechsten Schritt die echten Daten aus Collection: ${collectionTitle}
+  "Beispiel Film 1 (Urgent)":
+    template:
+      banner_text: Noch 2 Tage
+      color: '${bg?.kometa?.urgentColor ?? '#E31E24'}'
+      font_color: '${txt?.kometa?.urgentColor ?? '#FFFFFF'}'
+      item_title: "Beispiel Film 1 (Urgent)"
+      name: days_left_banner
+      
+  "Beispiel Film 2 (Warning)":
+    template:
+      banner_text: Noch 14 Tage
+      color: '${bg?.kometa?.warningColor ?? '#F1C40F'}'
+      font_color: '${txt?.kometa?.warningColor ?? '#141414'}'
+      item_title: "Beispiel Film 2 (Warning)"
+      name: days_left_banner
 
 templates:
-  maintainerr_urgent:
+  days_left_banner:
     overlay:
-      name: maintainerr_urgent
-      group: maintainerr
-      weight: 100
-      run_again: true
-
-  maintainerr_warning:
-    overlay:
-      name: maintainerr_warning
-      group: maintainerr
-      weight: 90
-      run_again: true
-
-collections:
-  "Maintainerr Countdown":
-    template:
-      - name: maintainerr_warning
-    maintainerr:
-      days_left:
-        # Alles groesser als ${urgentDays} Tage ist eine Warnung
-        greater_than: ${urgentDays}
-
-  "Maintainerr Urgent":
-    template:
-      - name: maintainerr_urgent
-    maintainerr:
-      days_left:
-        # Alles kleiner/gleich ${urgentDays} Tage ist dringend!
-        less_than_or_equal: ${urgentDays}
+      back_color: <<color>>
+      back_height: ${height}
+      back_radius: ${radius}
+      back_width: ${width}
+      font_color: <<font_color>>
+      font_size: ${fontSize}
+      horizontal_align: left
+      horizontal_offset: ${x}
+      name: text(<<banner_text>>)
+      vertical_align: top
+      vertical_offset: ${y}
+    plex_search:
+      title: <<item_title>>
 `.trim() + '\n';
 
-    // 4. Datei schreiben
-    const safeSectionId = sanitizeFilenameChars(payload.sectionId);
-    const fileName = `maintainerr_${safeSectionId}.yml`;
+    const safeTitle = sanitizeFilenameChars(collectionTitle);
+    const fileName = `maintainerr_${safeTitle}.yml`;
     const filePath = path.join(exportDir, fileName);
 
     fs.writeFileSync(filePath, yamlContent, 'utf8');
 
-    this.logger.log(`Kometa YAML exported successfully to ${filePath}`);
+    this.logger.log(
+      `Kometa YAML exported successfully for collection "${collectionTitle}" to ${filePath}`,
+    );
 
     return { success: true, path: filePath, fileName };
   }
