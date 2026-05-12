@@ -202,7 +202,7 @@ export const buildTemplatePreviewUrl = (
 // ── Kometa Export ─────────────────────────────────────────────────────────
 
 export const exportKometaCollection = (payload: {
-  sectionId: string
+  collectionId: string
   elements: any[]
 }) =>
   PostApiHandler<{ success: boolean; path: string; fileName: string }>(

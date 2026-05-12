@@ -82,23 +82,32 @@ const OverlayKometaPage = () => {
     [elements, selectedId],
   )
 
+  // --- Initial Load from DB ---
   useEffect(() => {
     if (settings) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEnabled(settings.kometaEnabled ?? false)
+
+      // Lade das gespeicherte Design in den Canvas (falls vorhanden)
+      if (
+        settings.kometaElements &&
+        settings.kometaElements.length > 0 &&
+        elements.length === 0
+      ) {
+        setElements(settings.kometaElements)
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings])
 
   // --- Load Assets ---
   useEffect(() => {
-    // 1. Hole Maintainerr Collections für den Export
     void GetApiHandler<any[]>('/collections')
       .then((c) => {
         if (c) setCollections(c)
       })
       .catch(() => toast.warning('Could not load collections.'))
 
-    // 2. Hole Plex Libraries für die Poster-Vorschau
     void getOverlaySections()
       .then((s) => {
         if (s) setSections(s)
@@ -170,7 +179,11 @@ const OverlayKometaPage = () => {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateSettings.mutateAsync({ kometaEnabled: enabled })
+      // HIER WIRD DAS DESIGN JETZT IN DER DATENBANK GESPEICHERT!
+      await updateSettings.mutateAsync({
+        kometaEnabled: enabled,
+        kometaElements: elements,
+      } as any) // 'as any' als Notfall-Pflaster, falls du Schritt 1 noch nicht gemacht hast
       toast.success('Design saved successfully!')
     } catch (err) {
       toast.error('Failed to save settings')

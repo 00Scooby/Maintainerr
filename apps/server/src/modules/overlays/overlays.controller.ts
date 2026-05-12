@@ -46,6 +46,7 @@ import * as path from 'path';
 import sharp from 'sharp';
 import { dataDir as configDataDir } from '../../app/config/dataDir';
 import { MediaServerSetupGuard } from '../api/media-server/guards/media-server-setup.guard';
+import { MediaServerFactory } from '../api/media-server/media-server.factory';
 import { CollectionsService } from '../collections/collections.service';
 import { MaintainerrLogger } from '../logging/logs.service';
 import { OverlayProcessorService } from './overlay-processor.service';
@@ -78,6 +79,7 @@ export class OverlaysController {
     private readonly providerFactory: OverlayProviderFactory,
     private readonly collectionsService: CollectionsService,
     private readonly logger: MaintainerrLogger,
+    private readonly mediaServerFactory: MediaServerFactory,
   ) {
     this.logger.setContext(OverlaysController.name);
     // Bundled fonts: check dist/assets/fonts first, then source assets/fonts for dev mode
@@ -604,11 +606,21 @@ export class OverlaysController {
     const collectionTitle = collection.title || 'Unknown Collection';
     const deleteDays = collection.deleteAfterDays ?? 30;
 
-    let mediaList = collection.collectionMedia;
-    if (!mediaList || mediaList.length === 0) {
+    let mediaList: any[] = [];
+    try {
       const fetchedMedia =
         await this.collectionsService.getCollectionMedia(collectionIdNum);
-      mediaList = fetchedMedia ?? [];
+      if (fetchedMedia && fetchedMedia.length > 0) {
+        mediaList = fetchedMedia;
+      } else if (
+        collection.collectionMedia &&
+        collection.collectionMedia.length > 0
+      ) {
+        mediaList = collection.collectionMedia;
+      }
+    } catch (e) {
+      this.logger.error('Error fetching media for collection', e);
+      mediaList = collection.collectionMedia || [];
     }
 
     const exportDir = path.join(configDataDir, 'kometa_export');
@@ -637,13 +649,22 @@ export class OverlaysController {
     const txtUrgent = txt?.kometa?.urgentColor ?? '#FFFFFF';
     const txtWarning = txt?.kometa?.warningColor ?? '#141414';
 
-    // --- 2. Live-Berechnung ---
+    // --- 2. Live-Berechnung & Maintainerr Fetch ---
     const now = new Date();
     const yamlOverlays: string[] = [];
 
-    for (const media of mediaList) {
-      const mediaAny = media as any;
-      if (!mediaAny.addDate) continue;
+    // HIER HOLEN WIR UNS DEN OFFIZIELLEN MAINTAINERR SERVICE!
+    let mediaServer;
+    try {
+      mediaServer = await this.mediaServerFactory.getService();
+    } catch (e) {
+      this.logger.warn(
+        'Could not initialize MediaServerService for Title-Fetch.',
+      );
+    }
+
+    for (const mediaAny of mediaList) {
+      if (!mediaAny.addDate || !mediaAny.mediaServerId) continue;
 
       const addDate = new Date(mediaAny.addDate);
       const diffTime = Math.abs(now.getTime() - addDate.getTime());
@@ -654,14 +675,12 @@ export class OverlaysController {
       const color = isUrgent ? bgUrgent : bgWarning;
       const fontColor = isUrgent ? txtUrgent : txtWarning;
 
-      // --- HIER WIRD DAS UI AUSGELESEN! ---
       let bannerText = '';
       if (txt?.segments && Array.isArray(txt.segments)) {
         for (const seg of txt.segments) {
           if (seg.type === 'text') {
             bannerText += seg.value;
           } else if (seg.type === 'variable' && seg.field === 'daysText') {
-            // Logik fuer Singular/Plural aus dem UI
             if (daysLeft === 0 && txt.textToday) {
               bannerText += txt.textToday;
             } else if (daysLeft === 1 && txt.textDay) {
@@ -669,28 +688,39 @@ export class OverlaysController {
             } else if (txt.textDays) {
               bannerText += txt.textDays.replace('{0}', daysLeft.toString());
             } else {
-              bannerText += `${daysLeft} days`; // Notfall-Fallback
+              bannerText += `${daysLeft} days`;
             }
           }
         }
       } else {
-        // Fallback, falls gar keine Segmente da sind
         bannerText = `Noch ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tage'}`;
       }
-      // ------------------------------------
 
-      const rawTitle =
-        mediaAny.title ?? mediaAny.mediaItem?.title ?? mediaAny.plexItem?.title;
-      const blockName = rawTitle
-        ? String(rawTitle).replace(/"/g, '\\"')
-        : `Plex Item ${mediaAny.mediaServerId}`;
+      // --- TITEL-ABFRAGE ÜBER DIE OFFIZIELLE MAINTAINERR API ---
+      let finalTitle = `Item_${mediaAny.mediaServerId}`;
+      if (mediaServer) {
+        try {
+          // Maintainerr holt uns den Film direkt mit allen Settings und Caches
+          const meta = await mediaServer.getMetadata(mediaAny.mediaServerId);
+          if (meta && meta.title) {
+            finalTitle = meta.title;
+          }
+        } catch (e) {
+          this.logger.debug(
+            `Metadata fetch failed for ${mediaAny.mediaServerId}: ${e}`,
+          );
+        }
+      }
 
-      const overlayBlock = `  "${blockName}":
-    plex_id: ${mediaAny.mediaServerId}
+      const mediaTitle = String(finalTitle).replace(/"/g, '\\"');
+      // ---------------------------------------------------------
+
+      const overlayBlock = `  "${mediaTitle}":
     template:
       banner_text: "${bannerText.trim()}"
       color: '${color}'
       font_color: '${fontColor}'
+      item_title: "${mediaTitle}"
       name: days_left_banner`;
 
       yamlOverlays.push(overlayBlock);
@@ -721,6 +751,8 @@ templates:
       name: text(<<banner_text>>)
       vertical_align: top
       vertical_offset: ${y}
+    plex_search:
+      title: <<item_title>>
 `.trim() + '\n';
 
     const safeTitle = sanitizeFilenameChars(collectionTitle);
